@@ -2,7 +2,7 @@ create table calendar.calendar (
     id          integer not null generated always as identity primary key,
     title       text not null unique
 );
-alter table calendar.calendar owner to pghttp_calendar_db_owner;
+alter table calendar.calendar owner to :owner_role;
 
 
 create table calendar.event (
@@ -13,7 +13,7 @@ create table calendar.event (
     url             text,
     event_time      tsrange not null
 );
-alter table calendar.event owner to pghttp_calendar_db_owner;
+alter table calendar.event owner to :owner_role;
 
 
 create table calendar.location_physical (
@@ -24,7 +24,7 @@ create table calendar.location_physical (
     address         text,
     instructions    text
 );
-alter table calendar.location_physical owner to pghttp_calendar_db_owner;
+alter table calendar.location_physical owner to :owner_role;
 
 
 create table calendar.location_virtual (
@@ -32,5 +32,5 @@ create table calendar.location_virtual (
     join_url        text,
     instructions    text
 );
-alter table calendar.location_virtual owner to pghttp_calendar_db_owner;
+alter table calendar.location_virtual owner to :owner_role;
 
