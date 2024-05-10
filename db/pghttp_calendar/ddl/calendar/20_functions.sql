@@ -159,3 +159,60 @@ select count(*)::int item_count
 end;
 
 alter function calendar.past_events_paging_info(int[], int, tsrange) owner to :owner_role;
+
+
+create or replace function calendar.list_calendars()
+returns table (
+    id int
+  , title           text
+  , event_count     int
+  , date_range      daterange
+)
+language sql stable
+begin atomic
+select c.id
+     , c.title
+     , count(e.*)::int as event_count
+     , daterange(min(lower(event_time)::date), max(upper(event_time))::date) date_range
+  from calendar.calendar c
+  join calendar.event e on e.calendar_id = c.id
+  group by c.id, c.title
+ order by title, date_range;
+end;
+
+alter function calendar.list_calendars() owner to :owner_role;
+
+
+create or replace function calendar.calendars_paging_info(p_page_size int)
+returns table (item_count int, page_size int, page_count int)
+language sql stable
+begin atomic
+select count(*)::int item_count
+     , p_page_size
+     , ceiling(count(*)::float/p_page_size)::int as page_count
+  from calendar.list_calendars();
+end;
+
+alter function calendar.calendars_paging_info(int) owner to :owner_role;
+
+
+create or replace function calendar.list_calendars_paged(p_page int, p_page_size int = 100)
+returns table (
+    id int
+  , title           text
+  , event_count     int
+  , date_range      daterange
+)
+language sql stable
+begin atomic
+select id
+     , title
+     , event_count
+     , date_range
+  from calendar.list_calendars() with ordinality
+     where ordinality > paging.offset(p_page, p_page_size)
+     order by ordinality
+     limit p_page_size;
+end;
+
+alter function calendar.list_calendars_paged(int, int) owner to :owner_role;
