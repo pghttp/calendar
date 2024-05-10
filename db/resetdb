@@ -5,6 +5,7 @@ genkey () {
 
 BASEPATH=$( cd $(dirname $0) ; pwd -P )
 SRCDIR=$1
+TARGETDB=$2
 HOST=${PGHOST:-localhost}
 PORT=${PGPORT:-5432}
 
@@ -31,6 +32,16 @@ fi
 if [ -z "$DB" ]
   then
     DB=$SRCDIR
+fi
+
+if [ -n "$TARGETDB" ]
+then
+  DB=$TARGETDB
+fi
+
+if [ -z "$OWNER_ROLE" ]
+  then
+    OWNER_ROLE=${DB}_db_owner
 fi
 echo "(re)building database '${DB}' on ${HOST}:${PORT}"
 echo
@@ -149,6 +160,7 @@ OWNER_ROLE_PASSWORD="$OWNER_ROLE_PASSWORD"
 ACCESS_ROLE="$ACCESS_ROLE"
 PUBLIC_ROLE="$PUBLIC_ROLE"
 EOF
+STORED=1
 fi
 
 echo "Created database ${DB} on ${HOST}:${PORT}"
@@ -156,7 +168,10 @@ echo "Owner ${OWNER_ROLE} with password ${OWNER_ROLE_PASSWORD}"
 echo "Access role ${ACCESS_ROLE}. Add users to this role to access the database."
 echo "Public access role ${PUBLIC_ROLE}. Add users to this role to access the database without login."
 echo
-echo "Stored in ${DB}/db.env"
+if [ ! -z $STORED ] 
+  then
+  echo "Stored in ${DB}/db.env"
+fi
 echo
 echo
 
