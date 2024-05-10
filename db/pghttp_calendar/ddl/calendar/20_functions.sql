@@ -1,5 +1,6 @@
 -- Events that last one day ("all day event") have the upper bound 'inf', so we need to convert them to (day, day+1) 
--- in order to match correctly with our point-in-time query for future events.
+-- in order to match correctly with the query for past events. The past event must be strictly left of the queried
+-- interval to be considered past (that is, must be finished) so we can't have single-day events with infinite upper bound.
 -- We can of course change that and disallow upper bound to be empty, always forcing the upper bound. That'd possibly
 -- gain us up to ~2ms. We'd have to signal 'all day event' differently, then. To be revisited later if the performance becomes 
 -- an issue.
@@ -14,39 +15,41 @@ return
 
 alter function calendar.full_range(tsrange) owner to :owner_role;
 
--- We list all events starting after a given date range, including those that are already ongoing.
+-- We list all events starting after a given date range, including those that are only overlapping with the specified
+-- range. (That is, that started before the specified range but are still ongoing as of the lower bound of the range,
+-- and will finish after the upper bound of the range).
 create or replace function calendar.list_events(p_calendars int[], p_after tsrange = tsrange('today', null))
 returns table (
-    id int
-  , event_time tsrange
-  , title text
+    id          int
+  , event_time  tsrange
+  , title       text
   , description text
-  , calendar text
-  , locations record[]
+  , calendar    text
+  , locations   record[]
 )
 language sql stable
 begin atomic
-    with locations as (
-        select 'physical' as kind, event_id, iso, city, venue, address, instructions
-        from calendar.location_physical
-        union all
-        select 'virtual', event_id, null, null, null, join_url, instructions
-        from calendar.location_virtual
-    )
-    select e.id
-        , e.event_time
-        , e.title
-        , e.description
-        , c.title calendar
-        , array_agg(row(l.kind, l.venue, l.address, l.iso, l.city, l.instructions)) locations
-    from calendar.event e
-    join calendar.calendar c on c.id = e.calendar_id
-    left join locations l on e.id = l.event_id
-    where e.calendar_id = any(p_calendars) 
-    and calendar.full_range(event_time) && p_after
-    group by e.id, c.title
-    order by event_time
-    ;
+with locations as (
+    select 'physical' as kind, event_id, iso, city, venue, address, instructions
+      from calendar.location_physical
+     union all
+    select 'virtual', event_id, null, null, null, join_url, instructions
+      from calendar.location_virtual
+)
+select e.id
+     , e.event_time
+     , e.title
+     , e.description
+     , c.title calendar
+     , array_agg(row(l.kind, l.venue, l.address, l.iso, l.city, l.instructions)) locations
+  from calendar.event e
+  join calendar.calendar c on c.id = e.calendar_id
+  left join locations l on e.id = l.event_id
+ where e.calendar_id = any(p_calendars) 
+   and calendar.full_range(event_time) && p_after
+ group by e.id, c.title
+ order by event_time
+;
 end;
 
 alter function calendar.list_events(int[], tsrange) owner to :owner_role;
