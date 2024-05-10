@@ -55,6 +55,45 @@ end;
 alter function calendar.list_events(int[], tsrange) owner to :owner_role;
 
 
+create or replace function calendar.list_events_paged(p_calendars int[],  p_page int = 1, p_page_size int = 100, p_after tsrange = tsrange('today', null))
+returns table (
+    id          int
+  , event_time  tsrange
+  , title       text
+  , description text
+  , calendar    text
+  , locations   record[]
+)
+language sql stable
+begin atomic
+    select id
+         , event_time
+         , title
+         , description
+         , calendar
+         , locations
+      from calendar.list_events(p_calendars, p_after) with ordinality
+     where ordinality > paging.offset(p_page, p_page_size)
+     order by ordinality
+     limit p_page_size;
+end;
+
+alter function calendar.list_events_paged(int[], int, int, tsrange) owner to :owner_role;
+
+
+create or replace function calendar.events_paging_info(p_calendars int[], p_page_size int, p_after tsrange = tsrange('today', null))
+returns table (item_count int, page_size int, page_count int)
+language sql stable
+begin atomic
+select count(*)::int item_count
+     , p_page_size
+     , ceiling(count(*)::float/p_page_size)::int as page_count
+  from calendar.list_events(p_calendars, p_after);
+end;
+
+alter function calendar.events_paging_info(int[], int, tsrange) owner to  :owner_role;
+
+
 create or replace function calendar.list_past_events(p_calendars int[], p_before tsrange = tsrange(null, 'today'))
 returns table (
     id          int
@@ -80,4 +119,43 @@ begin atomic
     ;
 end;
 
-alter function calendar.list_past_events(int[], tsrange) owner to pghttp_calendar_db_owner;
+alter function calendar.list_past_events(int[], tsrange) owner to :owner_role;
+
+
+create or replace function calendar.list_past_events_paged(p_calendars int[],  p_page int = 1, p_page_size int = 100, p_before tsrange = tsrange(null, 'today'))
+returns table (
+    id          int
+  , event_time  tsrange
+  , title       text
+  , description text
+  , calendar    text
+  , locations   record[]
+)
+language sql stable
+begin atomic
+    select id
+         , event_time
+         , title
+         , description
+         , calendar
+         , locations
+      from calendar.list_past_events(p_calendars, p_before) with ordinality
+     where ordinality > paging.offset(p_page, p_page_size)
+     order by ordinality
+     limit p_page_size;
+end;
+
+alter function calendar.list_past_events_paged(int[], int, int, tsrange) owner to :owner_role;
+
+
+create or replace function calendar.past_events_paging_info(p_calendars int[], p_page_size int, p_before tsrange = tsrange(null, 'today'))
+returns table (item_count int, page_size int, page_count int)
+language sql stable
+begin atomic
+select count(*)::int item_count
+     , p_page_size
+     , ceiling(count(*)::float/p_page_size)::int as page_count
+  from calendar.list_past_events(p_calendars, p_before);
+end;
+
+alter function calendar.past_events_paging_info(int[], int, tsrange) owner to :owner_role;
