@@ -3,6 +3,7 @@
 -- Dumped by pg_dump version 14.2
 
 SET statement_timeout = 0;
+SET time zone 'UTC';
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
 SET client_encoding = 'UTF8';
